@@ -1,0 +1,45 @@
+#!/bin/bash
+
+incr_k( ) {
+ K=`expr $K + 10`
+ }
+
+IPBLOCKLIST=`cat /var/root/bin/ipblocklist | sed -e '/#/d'`
+PORTLIST=`cat /var/root/bin/portlist | sed -e '/#/d'`
+IPWHITELIST=`cat /var/root/bin/ipwhitelist | sed -e '/#/d'`
+
+K=100
+
+for i in $IPBLOCKLIST ; do 
+ ipfw add $K deny all from $i to any
+ ipfw add $K deny all from any to $i
+ incr_k
+done
+
+ipfw add $K allow all from any to any established
+incr_k
+
+for i in $PORTLIST ; do 
+ if [ $i == "<TCP>" ] || [ $i == '</TCP>' ] ; then
+  FL="TCP" 
+  continue
+ elif [ $i == "<UDP>" ] || [ $i == '</UDP>' ] ; then
+  FL="UDP"
+  continue
+ fi
+ if [ $FL == "TCP" ] ; then
+  ipfw add $K allow tcp from me to any $i
+ elif [ $FL == "UDP" ] ; then
+  ipfw add $K allow udp from me to any $i
+  ipfw add $K allow udp from any $i to me
+ fi 
+ incr_k
+done
+
+for i in $IPWHITELIST ; do 
+ ipfw add $K allow tcp from me to $i 
+ ipfw add $K allow tcp from $i to me
+ incr_k
+done
+incr_k
+ipfw add $K drop ip from any to any
